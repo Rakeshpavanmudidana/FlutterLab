@@ -1,0 +1,220 @@
+import 'package:flutter/material.dart';
+import 'dart:async';
+
+void main() {
+  runApp(FocusTimerApp());
+}
+
+class FocusTimerApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Focus Timer',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(
+        primaryColor: Colors.tealAccent,
+        scaffoldBackgroundColor: Colors.black,
+      ),
+      home: FocusTimerScreen(),
+    );
+  }
+}
+
+class FocusTimerScreen extends StatefulWidget {
+  @override
+  _FocusTimerScreenState createState() => _FocusTimerScreenState();
+}
+
+class _FocusTimerScreenState extends State<FocusTimerScreen> {
+  TextEditingController _taskController = TextEditingController();
+  Timer? _timer;
+  int _remainingSeconds = 0;
+  bool _isRunning = false;
+  String _task = '';
+  final List<int> _durations = [5, 10, 15, 25]; // minutes options
+
+  void _startTimer(int minutes) {
+    if (_taskController.text.trim().isEmpty) return;
+
+    setState(() {
+      _task = _taskController.text.trim();
+      _remainingSeconds = minutes * 60;
+      _isRunning = true;
+    });
+
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_remainingSeconds > 0) {
+        setState(() {
+          _remainingSeconds--;
+        });
+      } else {
+        timer.cancel();
+        setState(() {
+          _isRunning = false;
+        });
+        _showCompleteDialog();
+      }
+    });
+  }
+
+  void _pauseTimer() {
+    _timer?.cancel();
+    setState(() {
+      _isRunning = false;
+    });
+  }
+
+  void _resetTimer() {
+    _timer?.cancel();
+    setState(() {
+      _remainingSeconds = 0;
+      _isRunning = false;
+      _task = '';
+      _taskController.clear();
+    });
+  }
+
+  void _showCompleteDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text('🎯 Focus Session Complete!'),
+        content: Text(
+          'Great job finishing your "$_task" task!\n\nTake a short break before the next round.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            child: Text('OK', style: TextStyle(color: Colors.tealAccent)),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(int seconds) {
+    int minutes = seconds ~/ 60;
+    int secs = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double progress = _remainingSeconds > 0
+        ? (_remainingSeconds /
+            (_durations.contains((_remainingSeconds ~/ 60))
+                ? _remainingSeconds
+                : (_remainingSeconds)))
+        : 0;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Focus Timer'),
+        centerTitle: true,
+        backgroundColor: Colors.tealAccent.withOpacity(0.2),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _taskController,
+              decoration: InputDecoration(
+                hintText: 'Enter your focus task...',
+                filled: true,
+                fillColor: Colors.white12,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none),
+              ),
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            SizedBox(height: 20),
+            if (!_isRunning)
+              Wrap(
+                spacing: 10,
+                children: _durations
+                    .map(
+                      (m) => ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.tealAccent.withOpacity(0.3),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () => _startTimer(m),
+                        child: Text('$m min'),
+                      ),
+                    )
+                    .toList(),
+              ),
+            SizedBox(height: 30),
+            Expanded(
+              child: Center(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 200,
+                      height: 200,
+                      child: CircularProgressIndicator(
+                        value: _remainingSeconds == 0
+                            ? 0
+                            : _remainingSeconds / (25 * 60),
+                        strokeWidth: 10,
+                        color: Colors.tealAccent,
+                        backgroundColor: Colors.white12,
+                      ),
+                    ),
+                    Text(
+                      _formatTime(_remainingSeconds),
+                      style:
+                          TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 10),
+            Text(
+              _task.isEmpty ? 'No task running' : 'Task: $_task',
+              style: TextStyle(fontSize: 16, color: Colors.white70),
+            ),
+            SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_isRunning)
+                  ElevatedButton.icon(
+                    onPressed: _pauseTimer,
+                    icon: Icon(Icons.pause),
+                    label: Text('Pause'),
+                  ),
+                if (!_isRunning && _remainingSeconds > 0)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      int minutes = (_remainingSeconds ~/ 60);
+                      _startTimer(minutes);
+                    },
+                    icon: Icon(Icons.play_arrow),
+                    label: Text('Resume'),
+                  ),
+                SizedBox(width: 10),
+                ElevatedButton.icon(
+                  onPressed: _resetTimer,
+                  icon: Icon(Icons.stop),
+                  label: Text('Reset'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent),
+                ),
+              ],
+            ),
+            SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
